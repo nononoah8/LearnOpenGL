@@ -1,0 +1,9 @@
+{
+  "files.associations": {
+    "*.scm": "racket",
+    "iostream": "cpp",
+    "string.h": "c",
+    "stdlib.h": "c",
+    "glad.h": "c"
+  }
+}
