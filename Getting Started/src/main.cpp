@@ -2,6 +2,21 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+
+static std::string ParseShader(const std::string& file){
+  std::ifstream stream(file);
+  std::string line;
+  std::stringstream shader;
+
+  while(getline(stream, line)){
+    shader << line << '\n';
+  }
+
+  return shader.str();
+}
 
 /*
 Function to Compile a shader that takes in the type of shader and the source name as a string.
@@ -108,19 +123,30 @@ int main()
   glClear(GL_COLOR_BUFFER_BIT);
   glfwSwapBuffers(window);
 
-  //* This will be the positions of the vertices of the triangle
-  float positions[6] = {
+  //* These are the vertices in the positions of the triangle(s)
+  float positions[] = {
     -0.5f, -0.5f,
-     0.0f, 0.5f,
-     0.5f,-0.5f
+     0.5f, -0.5f,
+     0.5f,  0.5f,
+    -0.5f,  0.5f,
+  };
+
+  //* This is now an index buffer
+  //* Specifies the indices of the vertices in the positions array that make up each triangle. The first
+  //* Triangle is made up of vertices 0, 1, and 2 and the second is of 3, 2, 0 and we don't need to re-define a vertex
+  //! ALL INDEX BUFFERS MUST BE UNSIGNED INTS NOT REGULAR INTS
+  unsigned int indices[]{
+    0, 1, 2,
+    3, 2, 0
   };
 
   //* This creates a vertex array object and it encapsulates the state of all the attributes.
   //* This includes the buffers they are sourced from, the attribute configurations such as data
   //* type and number of components and the associated array buffer bindings.
+  //? Also don't know if I only need this for apple or if I need this for my desktop too.
   unsigned int vao;
   glGenVertexArrays(1, &vao);
-  glBindVertexArray(vao);  
+  glBindVertexArray(vao);
 
   //* Open GL will make a singular buffer and writes an id to the uint buffer.
   unsigned int buffer;
@@ -128,7 +154,7 @@ int main()
   //* creates a buffer of memory which says that it's an array and pass in the id of the buffer as well
   glBindBuffer(GL_ARRAY_BUFFER, buffer);
   //* This will be us resizing the buffer and starting to use it
-  glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), positions, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
   
   //* Now we need to enable the vertex attribute
   //* Need to call glEnableVertexArray... to enable it so we can use it and so it can show
@@ -141,24 +167,19 @@ int main()
   //? Then finally, the pointer is the offset to the other coordinates not posistion
   glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,2*sizeof(float),0);
 
-  //* This means that we're using the shader language and using version 330 and we don't need the new features so we're using 330
-  std::string vertexShader =
-    "#version 330 core\n"
-    "\n"
-    "layout(location = 0) in vec4 position;\n"
-    "\n"
-    "void main(){\n"
-    "  gl_Position = position;\n"
-    "}\n";
+  //* Generates an index buffer
+  unsigned int ibo;
+  glGenBuffers(1, &ibo);
+  //* creates a buffer of memory which says that it's an array and pass in the id of the buffer as well
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+  //* This will be us resizing the buffer and starting to use it
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int ), indices, GL_STATIC_DRAW);
 
-  std::string fragmentShader =
-    "#version 330 core\n"
-    "\n"
-    "layout(location = 0) out vec4 color;\n"
-    "\n"
-    "void main(){\n"
-    "  color = vec4(.7, 0.1, 0.2, 1.0);\n"
-    "}\n";
+  //* This means that we're using the shader language and using version 330 and we don't need the new features so we're using 330
+
+  std::string vertexShader = ParseShader("res/shaders/vertex.vert");
+  std::string fragmentShader = ParseShader("res/shaders/fragment.frag");
+
   unsigned int shader = CreateShader(vertexShader, fragmentShader);
   glUseProgram(shader);
 
@@ -170,7 +191,10 @@ int main()
 
     //* Draws the triangle, but don't have an index buffer, also need shaders to see it 
     //* This will draw the current bound buffer using glBindBuffer.
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    // glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    //* We change it to glDrawElements to use an index buffer
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
     //? Swap front and back bufers
     glfwSwapBuffers(window);
