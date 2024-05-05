@@ -7,26 +7,9 @@
 #include <sstream>
 #include <csignal>
 
-#define ASSERT(x) if (!(x)) raise(SIGTRAP);
-//* This funciton is used to check for an error in any of our functions and then print the line, the file, and the 
-//* It will breakpoint whenever there is an error and quit the code and tell me where and stuff.
-#define GLCall(x) do { \
-    GLClearError();\
-    x;\
-    ASSERT(GLLogCall(#x, __FILE__, __LINE__)); \
-} while (false)
-
-static void GLClearError(){
-  while(glGetError() != GL_NO_ERROR);
-}
-
-static bool GLLogCall(const char* fn, const char* file, int line){
-  while(GLenum error = glGetError()){
-    std::cout << "OpenGL error: " << error << " [" << fn << "] [" << file << "] [" << line << "]\n";
-    return false;
-  }
-  return true;
-}
+#include "renderer.h"
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
 
 static std::string ParseShader(const std::string& file){
   std::ifstream stream(file);
@@ -167,43 +150,31 @@ int main()
   //* type and number of components and the associated array buffer bindings.
   //? Also don't know if I only need this for apple or if I need this for my desktop too.
   unsigned int vao;
-  glGenVertexArrays(1, &vao);
-  glBindVertexArray(vao);
+  GLCall(glGenVertexArrays(1, &vao));
+  GLCall(glBindVertexArray(vao));
 
-  //* Open GL will make a singular buffer and writes an id to the uint buffer.
-  unsigned int buffer;
-  glGenBuffers(1, &buffer);
-  //* creates a buffer of memory which says that it's an array and pass in the id of the buffer as well
-  glBindBuffer(GL_ARRAY_BUFFER, buffer);
-  //* This will be us resizing the buffer and starting to use it
-  glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
-  
+  //* Make a vertex buffer and don't need to bind it because it's automatically bound in the constructor.
+  VertexBuffer vb(positions, 4 * 2 * sizeof(float));  
+
   //* Now we need to enable the vertex attribute
   //* Need to call glEnableVertexArray... to enable it so we can use it and so it can show
-  glEnableVertexAttribArray(0);
+  GLCall(glEnableVertexAttribArray(0));
 
   //* This gets the attirbute of the buffer. It will take in the index(where to start the modified values)
   //* Then it will take the size or the number of things per vertex, then the type, then if we want it normalized
   //* normalized is basically if we have a 0-255 value and it needs to be turned into a 0-1f.
   //* Then the offset between each vertex which is 2 * sizeof(float) in this case.
   //? Then finally, the pointer is the offset to the other coordinates not posistion
-  glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,2*sizeof(float),0);
+  GLCall(glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,2*sizeof(float),0));
 
   //* Generates an index buffer
-  unsigned int ibo;
-  glGenBuffers(1, &ibo);
-  //* creates a buffer of memory which says that it's an array and pass in the id of the buffer as well
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-  //* This will be us resizing the buffer and starting to use it
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int ), indices, GL_STATIC_DRAW);
-
-  //* This means that we're using the shader language and using version 330 and we don't need the new features so we're using 330
+  IndexBuffer ib(indices, 6);
 
   std::string vertexShader = ParseShader("res/shaders/vertex.vert");
   std::string fragmentShader = ParseShader("res/shaders/fragment.frag");
 
   unsigned int shader = CreateShader(vertexShader, fragmentShader);
-  glUseProgram(shader);
+  GLCall(glUseProgram(shader));
 
   int location = glGetUniformLocation(shader, "u_Color");
   ASSERT(location != -1); //* If we get a locaiton of -1, then the program can't find the location.
@@ -213,18 +184,28 @@ int main()
   float increment = 0.01f; 
 
   //* We just need to bind these things below
-  // GLCall(glBindVertexArray(0));
-  // GLCall(glUseProgram(0));
-  // GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
-  // GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+  GLCall(glBindVertexArray(0));
+  GLCall(glUseProgram(0));
+  GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+  /*
+  Here we have a sepereate vao instead of having a global vao. These are for each different object that we need a new vao for them.
+  */
+
 
   //* This checks at the start of each loop if GLFW has instructed the window to close
   while(!glfwWindowShouldClose(window))
   {
     /* render heare */
-    glClear(GL_COLOR_BUFFER_BIT);
+    GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
+
+    GLCall(glUseProgram(shader));
+    
     GLCall(glUniform4f(location, r, 0.9f,0.2f,1.0f));
+    
+    GLCall(glBindVertexArray(vao));
+    ib.Bind();
 
     //* Draws the triangle, but don't have an index buffer, also need shaders to see it 
     //* This will draw the current bound buffer using glBindBuffer.
@@ -242,10 +223,10 @@ int main()
     r += increment;
 
     //? Swap front and back bufers
-    glfwSwapBuffers(window);
+    GLCall(glfwSwapBuffers(window));
 
     //* Process events to the window and shi
-    glfwPollEvents();
+    GLCall(glfwPollEvents());
   }
 
   //* delete the shader
@@ -255,10 +236,3 @@ int main()
   glfwTerminate();
   return 0;
 }
-
-/*
-* more shader notes I think
-
-
-
-*/

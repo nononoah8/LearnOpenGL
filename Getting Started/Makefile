@@ -1,7 +1,7 @@
 CXX = g++
 CFLAGS = -std=c++20 -g -Wall -fdiagnostics-color=always
 TARGET = main
-SOURCES = src/main.cpp
+SOURCES = src/*.cpp
 C-SOURCE = /Users/noahdujovny/Documents/OpenGL/dependencies/glad.c
 
 INC = -I/Users/noahdujovny/Documents/OpenGL/dependencies/include
