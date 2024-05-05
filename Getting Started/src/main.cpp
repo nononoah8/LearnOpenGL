@@ -5,6 +5,28 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <csignal>
+
+#define ASSERT(x) if (!(x)) raise(SIGTRAP);
+//* This funciton is used to check for an error in any of our functions and then print the line, the file, and the 
+//* It will breakpoint whenever there is an error and quit the code and tell me where and stuff.
+#define GLCall(x) do { \
+    GLClearError();\
+    x;\
+    ASSERT(GLLogCall(#x, __FILE__, __LINE__)); \
+} while (false)
+
+static void GLClearError(){
+  while(glGetError() != GL_NO_ERROR);
+}
+
+static bool GLLogCall(const char* fn, const char* file, int line){
+  while(GLenum error = glGetError()){
+    std::cout << "OpenGL error: " << error << " [" << fn << "] [" << file << "] [" << line << "]\n";
+    return false;
+  }
+  return true;
+}
 
 static std::string ParseShader(const std::string& file){
   std::ifstream stream(file);
@@ -183,18 +205,41 @@ int main()
   unsigned int shader = CreateShader(vertexShader, fragmentShader);
   glUseProgram(shader);
 
+  int location = glGetUniformLocation(shader, "u_Color");
+  ASSERT(location != -1); //* If we get a locaiton of -1, then the program can't find the location.
+  GLCall(glUniform4f(location, 0.7f, 0.9f,0.2f,1.0f));
+
+  float r = 0.0;
+  float increment = 0.01f; 
+
+  //* We just need to bind these things below
+  // GLCall(glBindVertexArray(0));
+  // GLCall(glUseProgram(0));
+  // GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+  // GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+
   //* This checks at the start of each loop if GLFW has instructed the window to close
   while(!glfwWindowShouldClose(window))
   {
     /* render heare */
     glClear(GL_COLOR_BUFFER_BIT);
 
+    GLCall(glUniform4f(location, r, 0.9f,0.2f,1.0f));
+
     //* Draws the triangle, but don't have an index buffer, also need shaders to see it 
     //* This will draw the current bound buffer using glBindBuffer.
     // glDrawArrays(GL_TRIANGLES, 0, 6);
 
     //* We change it to glDrawElements to use an index buffer
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+
+    if(r > 1.0f){
+      increment = -0.01f;
+    }else if(r < 0.0f){
+      increment = 0.01f;
+    }
+
+    r += increment;
 
     //? Swap front and back bufers
     glfwSwapBuffers(window);

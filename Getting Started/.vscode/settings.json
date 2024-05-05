@@ -43,6 +43,10 @@
     "tuple": "cpp",
     "typeinfo": "cpp",
     "variant": "cpp",
-    "algorithm": "cpp"
-  }
+    "algorithm": "cpp",
+    "fstream": "cpp",
+    "iomanip": "cpp",
+    "strstream": "cpp"
+  },
+  "cmake.configureOnOpen": false
 }

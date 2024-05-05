@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+      {
+          "name": "App debugger",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/src/main.cpp",
+          "args": [
+              "-I/Users/noahdujovny/Documents/OpenGL/dependencies/include",
+              "-L/Users/noahdujovny/Documents/OpenGL/dependencies/library",
+              "/Users/noahdujovny/Documents/OpenGL/dependencies/library/libglfw.3.3.dylib",
+              "/Users/noahdujovny/Documents/OpenGL/dependencies/glad.c",
+              "-o",
+              "app",
+              "-framework",
+              "OpenGL",
+              "-framework",
+              "Cocoa",
+              "-framework",
+              "IOKit",
+              "-framework",
+              "CoreVideo",
+              "-framework",
+              "CoreFoundation",
+              "-Wno-deprecated"
+          ],
+          "stopAtEntry": true,
+          "cwd": "${workspaceFolder}",
+          "environment": [],
+          "externalConsole": false,
+          "MIMode": "lldb",
+          "preLaunchTask": "C/C++: make assembler"
+      }
+  ]
+}
