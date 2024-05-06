@@ -8,82 +8,9 @@
 #include <csignal>
 
 #include "renderer.h"
-#include "VertexBuffer.h"
 #include "IndexBuffer.h"
-
-static std::string ParseShader(const std::string& file){
-  std::ifstream stream(file);
-  std::string line;
-  std::stringstream shader;
-
-  while(getline(stream, line)){
-    shader << line << '\n';
-  }
-
-  return shader.str();
-}
-
-/*
-Function to Compile a shader that takes in the type of shader and the source name as a string.
-Also source string MUST be alive.
-If you have a function that returns a string, should make it an l-value.
-*/
-static unsigned int CompileShader(unsigned int type, const std::string& source){
-  unsigned int id = glCreateShader(type);
-  const char* src = source.c_str();
-  
-  /*
-    glShaderSource sets the source code in shader to the source code in the array of strings specified by string. 
-    This function takes in the id or the shader type, then the number of shaders, then a double pointer to the source
-    It also takes in a double pointer to length which specifies an array of string lengths.
-  */
-  glShaderSource(id, 1, &src, nullptr);
-  glCompileShader(id);
-
-  GLint success;
-  glGetShaderiv(id, GL_COMPILE_STATUS, &success);
-  if(!success) {
-    GLint length;
-    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-    char* message = (char*)alloca(length * sizeof(char));
-    
-    glGetShaderInfoLog(id, length, &length, message);
-    std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader: " << std::endl;
-    std::cout << message << std::endl;
-
-    glDeleteShader(id);
-    return 0;
-  }
-
-  return id;
-}
-
-/*
-Creates the shader using the CompileShader function.
-*/
-static int CreateShader(const std::string& vertexShader, const std::string& fragmentShader){
-  //* Need to provide shader source code w our shader text and need to return something for that shader so we can bind it and then use it.
-  //* Need to create our program
-  unsigned int program = glCreateProgram();
-  //* Create vertex shader
-  unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
-  //* Create fragment shader
-  unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
-
-  //* We now need to attach these 2 shaders into our program.
-  //* Can think of it like having 2 different files and attaching them to our main program.
-  glAttachShader(program, vs);
-  glAttachShader(program, fs);
-  glLinkProgram(program);
-  glValidateProgram(program);
-
-  //* Since the shaders have been attached to the program, we don't need the memory overhead anymore and can just delete them.
-  glDeleteShader(vs);
-  glDeleteShader(fs);
-
-  //* Return the program.
-  return program;
-}
+#include "VertexArray.h"
+#include "Shader.h"
 
 int main()
 {
@@ -153,45 +80,30 @@ int main()
   GLCall(glGenVertexArrays(1, &vao));
   GLCall(glBindVertexArray(vao));
 
+  VertexArray va;
+
   //* Make a vertex buffer and don't need to bind it because it's automatically bound in the constructor.
   VertexBuffer vb(positions, 4 * 2 * sizeof(float));  
 
-  //* Now we need to enable the vertex attribute
-  //* Need to call glEnableVertexArray... to enable it so we can use it and so it can show
-  GLCall(glEnableVertexAttribArray(0));
-
-  //* This gets the attirbute of the buffer. It will take in the index(where to start the modified values)
-  //* Then it will take the size or the number of things per vertex, then the type, then if we want it normalized
-  //* normalized is basically if we have a 0-255 value and it needs to be turned into a 0-1f.
-  //* Then the offset between each vertex which is 2 * sizeof(float) in this case.
-  //? Then finally, the pointer is the offset to the other coordinates not posistion
-  GLCall(glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,2*sizeof(float),0));
+  VertexBufferLayout layout;
+  layout.Push<float>(2);
+  va.AddBuffer(vb, layout);
 
   //* Generates an index buffer
   IndexBuffer ib(indices, 6);
 
-  std::string vertexShader = ParseShader("res/shaders/vertex.vert");
-  std::string fragmentShader = ParseShader("res/shaders/fragment.frag");
-
-  unsigned int shader = CreateShader(vertexShader, fragmentShader);
-  GLCall(glUseProgram(shader));
-
-  int location = glGetUniformLocation(shader, "u_Color");
-  ASSERT(location != -1); //* If we get a locaiton of -1, then the program can't find the location.
-  GLCall(glUniform4f(location, 0.7f, 0.9f,0.2f,1.0f));
+  Shader shader("res/shaders/vertex.vert", "res/shaders/fragment.frag");
+  shader.Bind();
+  shader.SetUniform4f("u_Color", 0.8f, 0.2f, 0.5f, 1.0f);
 
   float r = 0.0;
   float increment = 0.01f; 
 
   //* We just need to bind these things below
-  GLCall(glBindVertexArray(0));
-  GLCall(glUseProgram(0));
-  GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
-  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
-  /*
-  Here we have a sepereate vao instead of having a global vao. These are for each different object that we need a new vao for them.
-  */
-
+  va.Unbind();
+  vb.Unbind();
+  ib.Unbind();
+  shader.Unbind();
 
   //* This checks at the start of each loop if GLFW has instructed the window to close
   while(!glfwWindowShouldClose(window))
@@ -199,17 +111,11 @@ int main()
     /* render heare */
     GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
-
-    GLCall(glUseProgram(shader));
+    shader.Bind();
+    shader.SetUniform4f("u_Color", r, 0.9f,1-r,1.0f);
     
-    GLCall(glUniform4f(location, r, 0.9f,0.2f,1.0f));
-    
-    GLCall(glBindVertexArray(vao));
+    va.Bind();
     ib.Bind();
-
-    //* Draws the triangle, but don't have an index buffer, also need shaders to see it 
-    //* This will draw the current bound buffer using glBindBuffer.
-    // glDrawArrays(GL_TRIANGLES, 0, 6);
 
     //* We change it to glDrawElements to use an index buffer
     GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
@@ -229,8 +135,6 @@ int main()
     GLCall(glfwPollEvents());
   }
 
-  //* delete the shader
-  glDeleteProgram(shader);
   //* Destroy the window
   glfwDestroyWindow(window);
   glfwTerminate();

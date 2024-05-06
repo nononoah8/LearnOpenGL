@@ -46,7 +46,11 @@
     "algorithm": "cpp",
     "fstream": "cpp",
     "iomanip": "cpp",
-    "strstream": "cpp"
+    "strstream": "cpp",
+    "vector": "cpp",
+    "__split_buffer": "cpp",
+    "array": "cpp",
+    "csignal": "cpp"
   },
   "cmake.configureOnOpen": false
 }
